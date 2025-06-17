@@ -590,6 +590,79 @@ app.get('/api/itinerario', async (_, res) => {
   }
 });
 
+// 1. Listar museos para el dropdown
+app.get('/api/museos', async (_, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id_museo, nombre
+      FROM museo
+      ORDER BY nombre
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/museos', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Obtener historial de un museo
+app.get('/api/historial-museo/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT fecha, descripcion
+         FROM historico_museo
+        WHERE id_museo = $1
+        ORDER BY fecha`,
+      [id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/historial-museo/:id', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/historial-museo   → crear nueva entrada
+app.post('/api/historial-museo', async (req, res) => {
+  const { id_museo, fecha, descripcion } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO historico_museo (id_museo, fecha, descripcion)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [id_museo, fecha, descripcion]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/historial-museo', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/historial-museo/:museo/:fecha  → actualizar descripción
+app.put('/api/historial-museo/:id/:fecha', async (req, res) => {
+  const { id, fecha } = req.params;
+  const { descripcion } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE historico_museo
+         SET descripcion = $3
+       WHERE id_museo = $1
+         AND fecha    = $2
+       RETURNING *`,
+      [id, fecha, descripcion]
+    );
+    if (!rows.length) return res.status(404).json({ error:'No encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PUT /api/historial-museo', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 
 // ─── START ──────────────────────────────────────────────────────────────────
 
